@@ -72,13 +72,32 @@ class Cache:
             dataAddress = memoryAddr[-self.dataLead:]
             row = memoryAddr[-self.rowLead - self.dataLead :-self.dataLead]
             mark = memoryAddr[start: start + self.markLength]
-            data = memoryData[int('0b' + memoryAddr,2)][int('0b' + dataAddress,2) * 8: (int('0b' + dataAddress,2) + 1) * 8]
+            data = memoryData[int('0b' + memoryAddr,2)]
             temp = str(self.data[int('0b' + row, 2)])
             temp = '1' + temp[1:]
-            temp = temp[:1] + mark + temp[self.markLength:]
-            temp = temp[:self.markLength + int('0b' + dataAddress,2) * 8] + data + temp[self.markLength + (int('0b' + dataAddress,2) + 1) * 8 :]
-            
+            temp = temp[:1] + mark + temp[1+self.markLength:]
+            temp = temp[:self.markLength+1] + data
             self.data[int('0b' + row, 2)] = temp
+
+    def getData(self, memoryAddr, memoryData):
+        if self.flag == 'direct':
+            # cacheAddr = memoryAddr % self.leadNum # 直接映射就是主存地址直接除以cache总的个数取余数
+            # 故意写麻烦一点 
+            start = 2 # 0x
+            memoryAddr = '0'*(self.memoryAddressLength - len(memoryAddr) + start) + memoryAddr[start:]
+            dataAddress = memoryAddr[-self.dataLead:]
+            row = memoryAddr[-self.rowLead - self.dataLead :-self.dataLead]
+            mark = memoryAddr[start: start + self.markLength]
+            temp = str(self.data[int('0b' + row, 2)])
+            if temp[0] == 0:
+                data = memoryData[int('0b' + memoryAddr,2)] # get from memory
+                return False,data
+            if temp[1: 1+self.markLength] != mark:
+                data = memoryData[int('0b' + memoryAddr,2)] # get from memory
+                return False,data
+            data = self.data[int('0b' + row,2)][1+self.markLength:]
+            data = data[int('0b' + dataAddress,2) * 8: (int('0b' + dataAddress,2) + 1) * 8]
+            return True, data
             
     
 cache = Cache(row = 8, col = 64)
@@ -88,6 +107,6 @@ cache.allocateCache()
 
 memoryData = np.repeat(np.array('1'* (64 << 3)), 256 << 8)
 # memoryData = np.random.randint(0,2, size=(256, 64 << 3)) # 内存大小256MB
-cache.pushDataToCache(bin(int('0x0000056',16)), memoryData)
-
+cache.pushDataToCache(bin(int('0x0000010',16)), memoryData)
+print(cache.getData(bin(int('0x0000001',16)), memoryData))
 
